@@ -1,25 +1,157 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research - Project 1"
+author: "Brad Dietz"
+date: "November 11, 2015"
+output: html_document
 ---
 
+This project will teach markdown, GitHub and many facets of general R usage using data from a personal activity monitoring device.  The device collected the number of steps over 2 months at 5 minute increments. 
 
-## Loading and preprocessing the data
+###Loading and preprocessing the data
+```{r, cache=TRUE, echo=TRUE}
+activity <-read.csv("activity.csv", header = TRUE, sep=",", check.names=FALSE, stringsAsFactors=FALSE)
+activity$steps <- as.numeric(activity$steps)
+```
+Please note that the assignment says to ignore the missing values so rows with NA values will not be dropped.
+
+###What is the mean total number of steps taken per day?
+
+####Total Number of Steps per day
+```{r, cache=TRUE, echo=TRUE}
+sum(activity$steps, na.rm=TRUE)
+```
+
+####Histogram of total steps per day
+```{r, echo=TRUE}
+library(plyr)
+DailySteps<-ddply(activity, c("date"), summarise, Sum=sum(steps, na.rm = T))
+hist(DailySteps$Sum,  breaks = 10, main="Histogram of total steps per day", 
+     xlab="Total steps per day")
+```
+
+####Mean total Number of Steps per day
+```{r, cache=TRUE, echo=TRUE}
+mean(DailySteps$Sum)
+```
+
+####Median total Number of Steps per day
+```{r, cache=TRUE, echo=TRUE}
+median(DailySteps$Sum)
+```
+
+###What is the average daily activity pattern?
+
+####Time series plot 
+```{r, echo=TRUE}
+library(ggplot2)
+library(plyr)
+DailyActivity<-ddply(activity, c("interval"), summarise, Mean=mean(steps, na.rm = T))
+plot(DailyActivity$interval, DailyActivity$Mean, type = "l",  col=1, 
+     main="Average steps averaged across all days", xlab="Interval", 
+     ylab="Average steps")
+```
+
+####Interval with the maximum number of steps
+```{r, echo=TRUE}
+DailyActivity[which.max(DailyActivity$Mean),]$interval
+```
+
+###Imputing missing values
+
+####Total number of missing values in the dataset
+```{r, cache=TRUE, echo=TRUE}
+count(is.na(activity$steps))[2,]
+```
+
+####Impute values for the NA values in the dataset
+Use the MICE package to replace the NA values
+```{r, cache=TRUE, echo=TRUE}
+library(mice)
+
+ImputedActivity <- mice(activity)
+ImputedActivity<-complete(ImputedActivity)
+```
+
+####Histogram of total steps per day using the original and imputed datasets
+```{r, cache=TRUE, echo=TRUE}
+library(plyr)
+ImputedDailySteps<-ddply(ImputedActivity, c("date"), summarise, Sum=sum(steps, na.rm = T))
+
+par(mfrow = c(1, 2))
+hist(DailySteps$Sum,  breaks = 10, main="Original Histogram", 
+     xlab="Total steps per day")
+hist(ImputedDailySteps$Sum,  breaks = 10, main="Imputed Histogram", 
+     xlab="Total steps per day")
+```
+
+####Mean total Number of Steps per day w/imputed dataset
+```{r, cache=TRUE, echo=TRUE}
+mean(ImputedDailySteps$Sum)
+```
+The imputed dataset mean is higher than the original dataset mean by 
+```{r, cache=TRUE, echo=TRUE}
+mean(ImputedDailySteps$Sum)-mean(DailySteps$Sum)
+```
+
+####Median total Number of Steps per day w/imputed dataset
+```{r, cache=TRUE, echo=TRUE}
+median(ImputedDailySteps$Sum)
+```
+The imputed dataset median is higher than the original dataset median by 
+```{r, cache=TRUE, echo=TRUE}
+median(ImputedDailySteps$Sum)-median(DailySteps$Sum)
+```
+
+####Total Number of Steps per day w/imputed dataset
+```{r, cache=TRUE, echo=TRUE}
+sum(ImputedDailySteps$Sum)
+```
+The imputed dataset step total is higher than the original dataset step total by 
+```{r, cache=TRUE, echo=TRUE}
+sum(ImputedDailySteps$Sum)-sum(DailySteps$Sum)
+```
+
+###Are there differences in activity patterns between weekdays and weekends?
+
+####Create a 2 level factor variable (weekday/weekend) in the imputed dataset
+```{r, cache=TRUE, echo=TRUE}
+library(ggplot2)
+ImputedActivity$date <- as.Date(ImputedActivity$date)
+
+myday <- function(x){
+  if(x=="Monday")
+   return("weekday")
+  if(x=="Tuesday")
+    return("weekday")
+  if(x=="Wednesday")
+    return("weekday")
+  if(x=="Thursday")
+    return("weekday")
+  if(x=="Friday")
+    return("weekday")
+  if(x=="Saturday")
+    return("weekend")
+  if(x=="Sunday")
+    return("weekend")
+  else
+    return(NA)
+}
+
+ImputedActivity$fday <- sapply(weekdays(ImputedActivity$date), myday)
+ImputedActivity$fday <- as.factor(ImputedActivity$fday)
+```
+
+####Make a time series panel plot of Weekday and Weekend step activity 
+```{r, cache=TRUE, echo=TRUE}
+WeekActivity<-ddply(ImputedActivity, c("interval", "fday"), summarise, Mean=mean(steps, na.rm = T))
+
+par(mfrow = c(1, 1))
+ggplot(WeekActivity, aes(x=interval, y=Mean)) +
+geom_line() +    
+facet_grid(fday ~ .) +
+ylab("Average steps") +
+ggtitle("Average steps averaged across weekday/weekend")
+```
 
 
 
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
